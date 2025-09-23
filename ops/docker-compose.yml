@@ -1,0 +1,57 @@
+x-common-envs: &common-envs
+  - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+  - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+  - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+  - JIRA_URL=${JIRA_URL}
+  - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+  - JIRA_PROJECT_KEY=${JIRA_PROJECT_KEY}
+  - JIRA_ISSUE_TYPE=${JIRA_ISSUE_TYPE}
+  - ALLOWED_CHANNELS=${ALLOWED_CHANNELS}
+  - RESPONSIBLE_USER_ID=${RESPONSIBLE_USER_ID}
+  - GOOGLE_SHEET_URL=${GOOGLE_SHEET_URL}
+  - GOOGLE_CREDENTIALS_PATH=${GOOGLE_CREDENTIALS_PATH}
+  - REDIS_URL="redis://redis:6379"
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  web:
+    build:
+      context: .
+      dockerfile: ops/Dockerfile
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      <<: *common-envs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 1G
+    command: >
+      sh -c "uv run uvicorn server:api --host 0.0.0.0 --port 8000"
+
+  notification-worker:
+    build:
+      context: .
+      dockerfile: ops/Dockerfile
+    environment:
+      <<: *common-envs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    command: >
+      sh -c "python notification_worker.py"

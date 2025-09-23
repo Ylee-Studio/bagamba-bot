@@ -1,0 +1,83 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Add server to known hosts
+      run: |
+        ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to server
+      run: |
+        ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
+          cd /opt/bagamba
+          git pull origin main
+          
+          # Create .env file from GitHub secrets and variables
+          cat > .env << EOL
+        DEBUG=${{ vars.DEBUG }}
+        SECRET_KEY=${{ secrets.SECRET_KEY }}
+        ALLOWED_HOSTS=${{ vars.ALLOWED_HOSTS }}
+        
+        DB_NAME=${{ vars.DB_NAME }}
+        DB_USER=${{ vars.DB_USER }}
+        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+        DB_HOST=172.18.0.1
+        DB_PORT=5432
+        
+        REDIS_URL=redis://redis:6379/0
+        REDIS_HOST=redis
+        REDIS_PORT=6379
+        REDIS_DB=0
+        REDIS_REMINDERS_DB=1
+        REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+        
+        OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+        OPENAI_MODEL=${{ vars.OPENAI_MODEL }}
+        
+        SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+        SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
+        
+        GOOGLE_KEY_PATH=${{ vars.GOOGLE_KEY_PATH }}
+        GOOGLE_EMPLOYEES_SHEET_ID=${{ vars.GOOGLE_EMPLOYEES_SHEET_ID }}
+        GOOGLE_EMPLOYEES_LIST_ID=${{ vars.GOOGLE_EMPLOYEES_LIST_ID }}
+        
+        GOOGLE_ADMIN_EMAIL=${{ vars.GOOGLE_ADMIN_EMAIL }}
+        
+        ACCESS_REQUEST_GRANT_REMINDER_INTERVAL_MINUTES=${{ vars.ACCESS_REQUEST_GRANT_REMINDER_INTERVAL_MINUTES }}
+        ACCESS_REQUEST_REVOKE_REMINDER_INTERVAL_MINUTES=${{ vars.ACCESS_REQUEST_REVOKE_REMINDER_INTERVAL_MINUTES }}
+        SERVICE_REQUEST_REMINDER_INTERVAL_MINUTES=${{ vars.SERVICE_REQUEST_REMINDER_INTERVAL_MINUTES }}
+        
+        GOOGLE_SYNC_INTERVAL_MINUTES=${{ vars.GOOGLE_SYNC_INTERVAL_MINUTES }}
+        SLACK_SYNC_INTERVAL_MINUTES=${{ vars.SLACK_SYNC_INTERVAL_MINUTES }}
+        EOL
+          
+          # Deploy with Docker Compose
+          docker-compose -f ops/docker-compose.yaml down
+          docker-compose -f ops/docker-compose.yaml build --no-cache
+          docker-compose -f ops/docker-compose.yaml up -d
+          
+          # Wait for PostgreSQL and run migrations          
+          # Cleanup old images
+          docker system prune -af
+        EOF
+
+    - name: Health check
+      run: |
+        sleep 20
+        curl -f https://bagamba.assistant.instories.com/health/ || exit 1
