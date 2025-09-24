@@ -10,4 +10,4 @@ RUN uv sync --locked --python-preference system
 
 COPY bagamba/ .
 
-CMD ["uvicorn", "server:api", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["uvicorn", "server:api", "--host", "0.0.0.0", "--port", "8001", "--proxy-headers"]
