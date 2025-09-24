@@ -25,10 +25,10 @@ jobs:
     - name: Deploy to server
       run: |
         ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
-        mkdir -p /opt/bagamba
-        cd /opt/bagamba
+        mkdir -p /home/ubuntu/bagamba
+        cd /home/ubuntu/bagamba
         git pull origin main
-        cd /opt/bagamba/bagamba
+        cd /home/ubuntu/bagamba/bagamba
         # Create .env file from GitHub secrets and variables
         echo "${{ secrets.ENV_FILE_B64 }}" | base64 -d > .env
         echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > credentials.json
