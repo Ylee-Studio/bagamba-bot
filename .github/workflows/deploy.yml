@@ -29,13 +29,13 @@ jobs:
         git pull
         pwd        
         # Create .env file from GitHub secrets and variables
-        echo "${{ secrets.ENV_FILE_B64 }}" | base64 -d > .env
-        echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > credentials.json
+        echo "${{ secrets.ENV_FILE_B64 }}" | base64 -d > bagamba/.env
+        echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > bagamba/credentials.json
           
           # Deploy with Docker Compose
-          docker-compose -f ../ops/docker-compose.yaml down
-          docker-compose -f ../ops/docker-compose.yaml build --no-cache
-          docker-compose -f ../ops/docker-compose.yaml up -d
+          docker-compose -f ops/docker-compose.yaml down
+          docker-compose -f ops/docker-compose.yaml build --no-cache
+          docker-compose -f ops/docker-compose.yaml up -d
           
           
           docker system prune -af
