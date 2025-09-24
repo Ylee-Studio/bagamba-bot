@@ -34,6 +34,8 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    volumes:
+      - db_data:/app/incidents.db
     deploy:
       resources:
         limits:
@@ -53,6 +55,12 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - redis
+      - web
+    volumes:
+      - db_data:/app/incidents.db
     restart: unless-stopped
     command: >
       sh -c "python notification_worker.py"
+
+volumes:
+  db_data:
