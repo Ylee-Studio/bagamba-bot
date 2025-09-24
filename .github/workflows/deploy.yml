@@ -25,6 +25,7 @@ jobs:
     - name: Deploy to server
       run: |
         ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
+        mkdir -p /opt/bagamba
         cd /opt/bagamba
         git pull origin main
         cd /opt/bagamba/bagamba
