@@ -27,6 +27,17 @@ jobs:
         ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
         mkdir -p /home/ubuntu/bagamba
         cd /home/ubuntu/bagamba
+        if [ ! -d .git ]; then
+            # первый раз — клонируем
+            git clone git@github.com:Ylee-Studio/bagamba-bot.git  .
+            git checkout main
+        else
+            # если уже есть — просто обновляем
+            git fetch origin main
+            git reset --hard origin/main
+        fi
+       
+        
         git pull origin main
         cd /home/ubuntu/bagamba/bagamba
         # Create .env file from GitHub secrets and variables
