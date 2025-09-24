@@ -34,8 +34,8 @@ jobs:
         cd /home/ubuntu/bagamba-bot/bagamba
           # Deploy with Docker Compose
           docker-compose -f ../ops/docker-compose.yml down
-          docker-compose -f ../ops/docker-compose.yml build --no-cache
-          docker-compose -f ../ops/docker-compose.yml up -d
+          docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml build --no-cache
+          docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml up -d
           
           
           docker system prune -af
