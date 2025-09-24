@@ -20,8 +20,8 @@ class Config(BaseSettings):
 
     # Bot Configuration
     RESPONSIBLE_USER_ID: str
-    NOTIFICATION_INTERVAL_MINUTES: int = 2
-    AWAITING_RESPONSE_INTERVAL_MINUTES: int = 2
+    NOTIFICATION_INTERVAL_MINUTES: int = 10
+    AWAITING_RESPONSE_INTERVAL_MINUTES: int = 10
 
     # Channel Configuration
     ALLOWED_CHANNELS: list[str] = Field(default_factory=list)
