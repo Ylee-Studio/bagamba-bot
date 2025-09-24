@@ -25,19 +25,19 @@ jobs:
     - name: Deploy to server
       run: |
         ssh ${{ secrets.USER }}@${{ secrets.HOST }} << 'EOF'
-        cd /home/ubuntu/bagamba-bot
-        git pull
-        pwd        
+            cd /home/ubuntu/bagamba-bot
+            git pull
+            pwd        
         # Create .env file from GitHub secrets and variables
-        echo "${{ secrets.ENVS_B64 }}" | base64 -d > bagamba/.env
-        echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > bagamba/credentials.json
+            echo "${{ secrets.ENVS_B64 }}" | base64 -d > bagamba/.env
+            echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > bagamba/credentials.json
           # Deploy with Docker Compose
-          docker-compose -f ../ops/docker-compose.yml down
-          docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml build --no-cache
-          docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml up -d
+            docker-compose -f ../ops/docker-compose.yml down
+            docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml build --no-cache
+            docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml up -d
           
           
-          docker system prune -af
+            docker system prune -af
         EOF
 
     - name: Health check
