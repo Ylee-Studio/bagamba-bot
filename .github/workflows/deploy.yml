@@ -31,7 +31,6 @@ jobs:
         # Create .env file from GitHub secrets and variables
         echo "${{ secrets.ENVS_B64 }}" | base64 -d > bagamba/.env
         echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > bagamba/credentials.json
-        cd /home/ubuntu/bagamba-bot/bagamba
           # Deploy with Docker Compose
           docker-compose -f ../ops/docker-compose.yml down
           docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml build --no-cache
