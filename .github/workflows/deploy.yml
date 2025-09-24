@@ -33,9 +33,9 @@ jobs:
             echo "${{ secrets.GOOGLE_TOKEN_B64 }}" | base64 -d > bagamba/credentials.json
           # Deploy with Docker Compose
             pwd
-            docker-compose -f ../ops/docker-compose.yml down
-            docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml build --no-cache
-            docker-compose --env-file bagamba/.env -f ../ops/docker-compose.yml up -d
+            docker-compose -f docker-compose.yml down
+            docker-compose --env-file bagamba/.env -f docker-compose.yml build --no-cache
+            docker-compose --env-file bagamba/.env -f docker-compose.yml up -d
           
           
             docker system prune -af
