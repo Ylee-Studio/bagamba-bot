@@ -46,7 +46,7 @@ services:
   notification-worker:
     build:
       context: .
-      dockerfile: ops/Dockerfile
+      dockerfile: Dockerfile
     environment:
       <<: *common-envs
     extra_hosts:
