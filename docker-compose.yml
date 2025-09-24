@@ -35,7 +35,7 @@ services:
       - redis
     restart: unless-stopped
     volumes:
-      - db_data:/app/incidents.db
+      - db_data:/app/db
     deploy:
       resources:
         limits:
@@ -57,7 +57,7 @@ services:
       - redis
       - web
     volumes:
-      - db_data:/app/incidents.db
+      - db_data:/app/db
     restart: unless-stopped
     command: >
       sh -c "python notification_worker.py"

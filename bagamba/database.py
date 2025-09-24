@@ -30,11 +30,15 @@ class Incident:
     def __post_init__(self):
         if self.created_at is None:
             self.created_at = datetime.now()
+import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_DIR = os.getenv("DB_DIR", "/app/db")  # общий том из docker-compose
+DB_PATH = os.path.join(DB_DIR, "incidents.db")
 
 @dataclass
 class Database:
-    db_path: str = "incidents.db"
+    db_path: str = DB_PATH
 
     def init_db(self):
         """Инициализирует базу данных и создает таблицы"""
