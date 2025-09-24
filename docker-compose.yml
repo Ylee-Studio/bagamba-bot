@@ -26,7 +26,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8000"
     environment:
       <<: *common-envs
     extra_hosts:
@@ -41,7 +41,7 @@ services:
         reservations:
           memory: 1G
     command: >
-      sh -c "uv run uvicorn server:api --host 0.0.0.0 --port 8001"
+      sh -c "uv run uvicorn server:api --host 0.0.0.0 --port 8000"
 
   notification-worker:
     build:
