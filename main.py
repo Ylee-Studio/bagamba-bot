@@ -80,8 +80,8 @@ def handle_message_events(event, say, client):
     # Создаем тикет в Jira
     try:
         # Используем первые 300 символов сообщения в качестве названия
-        title = message_text[:250] if len(message_text) > 250 else message_text
-        if len(message_text) > 250:
+        title = message_text[:300] if len(message_text) > 300 else message_text
+        if len(message_text) > 300:
             title += "..."
 
         # Создаем ссылку на тред
