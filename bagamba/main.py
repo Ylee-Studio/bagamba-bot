@@ -80,9 +80,10 @@ def handle_message_events(event, say, client):
     # Создаем тикет в Jira
     try:
         # Используем первые 300 символов сообщения в качестве названия
-        title = message_text[:250] if len(message_text) > 250 else message_text
-        if len(message_text) > 250:
+        title = message_text[:150] if len(message_text) > 150 else message_text
+        if len(message_text) > 150:
             title += "..."
+        title =title.replace("\n", " ").replace("\r", " ")
 
         # Создаем ссылку на тред
         thread_url = f"https://instoriesworkspace.slack.com/archives/{channel_id}/p{event['ts'].replace('.', '')}"
