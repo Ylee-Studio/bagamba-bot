@@ -304,12 +304,25 @@ class NotificationWorker:
 def main():
     """Главная функция"""
     try:
+        # Создаем Redis клиент
+        redis_client = redis.Redis.from_url(Config.REDIS_URL, db=Config.REDIS_DB)
+        
+        # Проверяем подключение к Redis
+        try:
+            redis_client.ping()
+            logger.info("✅ Подключение к Redis установлено")
+        except redis.ConnectionError as e:
+            logger.error(f"❌ Не удалось подключиться к Redis: {e}")
+            logger.error("Убедитесь, что Redis запущен и доступен по адресу: " + Config.REDIS_URL)
+            sys.exit(1)
+        
         worker = NotificationWorker(
-            redis_client=RedisClient(url=Config.REDIS_URL, db=Config.REDIS_DB),
+            redis_client=redis_client,
             send_notification_sync_from_worker=NotificationSender(
                 duty_manager=DutyManager(
                     google_sheets_url=Config.GOOGLE_SHEET_URL,
                     credentials_path=Config.GOOGLE_CREDENTIALS_PATH,
+                    sheet_range=Config.GOOGLE_SHEET_RANGE,
                 ),
                 worker_client=WebClient(token=Config.SLACK_BOT_TOKEN),
             ),

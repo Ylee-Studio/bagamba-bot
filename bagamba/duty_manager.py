@@ -28,7 +28,7 @@ class DutyManager:
 
     google_sheets_url: str
     credentials_path: str
-    sheet_range: str = "A:D"  # По умолчанию колонки A-D
+    sheet_range: str = "A:D"  # По умолчанию колонки A-D (будет переопределено из конфигурации)
     service: Any | None = None
     duty_slots: list[DutySlot] = field(default_factory=list)
     last_update: datetime | None = datetime.now() - timedelta(days=2)
@@ -155,41 +155,9 @@ class DutyManager:
                 continue
 
             try:
-                start_time = row[0].strip()
-                end_time = row[1].strip()
-                name = row[2].strip()
-                slack_id = row[3].strip()
-
-                # Пропускаем записи с #N/A в slack_id
-                if slack_id == "#N/A" or not slack_id or slack_id.lower() == "n/a":
-                    logger.debug(
-                        f"Пропускаем запись для {name} ({start_time}-{end_time}) из-за отсутствующего Slack ID."
-                    )
-                    continue
-
-                # Удаляем @ из Slack ID, если он есть
-                if slack_id.startswith("@"):
-                    slack_id = slack_id[1:]
-
-                # Проверяем, что время в правильном формате
-                if not self._validate_time_format(start_time) or not self._validate_time_format(end_time):
-                    logger.warning(
-                        f"⚠️ Неверный формат времени для {name}: {start_time} - {end_time}"
-                    )
-                    continue
-
-                duty_slot = DutySlot(
-                    start_time=start_time,
-                    end_time=end_time,
-                    name=name,
-                    slack_id=slack_id,
-                )
-
-                self.duty_slots.append(duty_slot)
-                logger.debug(
-                    f"✅ Добавлен слот: {name} ({slack_id}) с {start_time} по {end_time}"
-                )
-
+                duty_slot = self._parse_single_row(row)
+                if duty_slot:
+                    self.duty_slots.append(duty_slot)
             except (ValueError, IndexError) as e:
                 logger.warning(f"⚠️ Ошибка парсинга строки: {row} - {e}")
                 continue
@@ -198,6 +166,50 @@ class DutyManager:
         self.duty_slots.sort(key=lambda x: x.start_time)
         logger.info(f"📅 Загружено {len(self.duty_slots)} временных слотов")
 
+    def _parse_single_row(self, row: List[str]) -> Optional[DutySlot]:
+        """Парсит одну строку из Google Sheets"""
+        start_time = row[0].strip()
+        end_time = row[1].strip()
+        name = row[2].strip()
+        slack_id = row[3].strip()
+
+        # Пропускаем записи с #N/A в slack_id
+        if slack_id == "#N/A" or not slack_id or slack_id.lower() == "n/a":
+            logger.debug(
+                f"Пропускаем запись для {name} ({start_time}-{end_time}) из-за отсутствующего Slack ID."
+            )
+            return None
+
+        # Удаляем @ из Slack ID, если он есть
+        if slack_id.startswith("@"):
+            slack_id = slack_id[1:]
+
+        # Пропускаем пустые строки
+        if not name or not slack_id:
+            return None
+
+        # Пытаемся распарсить даты и преобразовать их в время
+        start_time_parsed = self._parse_time_from_date(start_time)
+        end_time_parsed = self._parse_time_from_date(end_time)
+        
+        if not start_time_parsed or not end_time_parsed:
+            logger.warning(
+                f"⚠️ Не удалось распарсить время для {name}: {start_time} - {end_time}"
+            )
+            return None
+
+        duty_slot = DutySlot(
+            start_time=start_time_parsed,
+            end_time=end_time_parsed,
+            name=name,
+            slack_id=slack_id,
+        )
+
+        logger.debug(
+            f"✅ Добавлен слот: {name} ({slack_id}) с {start_time_parsed} по {end_time_parsed}"
+        )
+        return duty_slot
+
     def _validate_time_format(self, time_str: str) -> bool:
         """Проверяет формат времени HH:MM"""
         try:
@@ -205,6 +217,47 @@ class DutyManager:
             return True
         except ValueError:
             return False
+
+    def _parse_time_from_date(self, date_str: str) -> Optional[str]:
+        """Парсит время из строки даты или возвращает время в формате HH:MM"""
+        if not date_str:
+            return None
+
+        # Убираем лишние пробелы
+        date_str = date_str.strip()
+
+        # Если это уже время в формате HH:MM, возвращаем как есть
+        if self._validate_time_format(date_str):
+            return date_str
+
+        # Пытаемся распарсить как дату
+        parsed_date = self._parse_date(date_str)
+        if parsed_date:
+            # Возвращаем время в формате HH:MM
+            return parsed_date.strftime("%H:%M")
+
+        # Если это формат "число - дата" (например "5 - 27.01.25")
+        if " - " in date_str:
+            parts = date_str.split(" - ")
+            if len(parts) == 2:
+                # Берем первое число как час
+                try:
+                    hour = int(parts[0].strip())
+                    if 0 <= hour <= 23:
+                        return f"{hour:02d}:00"
+                except ValueError:
+                    pass
+
+        # Если это просто число (например "5")
+        try:
+            hour = int(date_str)
+            if 0 <= hour <= 23:
+                return f"{hour:02d}:00"
+        except ValueError:
+            pass
+
+        logger.warning(f"⚠️ Не удалось распарсить время из: {date_str}")
+        return None
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Парсит дату в различных форматах"""
