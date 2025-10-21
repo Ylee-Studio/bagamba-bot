@@ -7,7 +7,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from dataclasses import dataclass, field
 import re
-
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -248,8 +248,11 @@ class DutyManager:
         else:
             logger.info("📋 Используем кэшированное расписание дежурных")
 
-        current_time = datetime.now().strftime("%H:%M")
-        logger.info(f"📅 Текущее время: {current_time}")
+        # Получаем московское время
+        
+        moscow_tz = pytz.timezone('Europe/Moscow')
+        current_time = datetime.now(moscow_tz).strftime("%H:%M")
+        logger.info(f"📅 Текущее время (Москва): {current_time}")
         logger.info(f"📋 Количество слотов в расписании: {len(self.duty_slots)}")
 
         for duty_slot in self.duty_slots:

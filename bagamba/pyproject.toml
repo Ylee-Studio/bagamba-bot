@@ -23,6 +23,7 @@ dependencies = [
     "black>=25.1.0",
     "fastapi>=0.117.1",
     "uvicorn>=0.37.0",
+    "pytz>=2025.2",
 ]
 
 [tool.ruff]
