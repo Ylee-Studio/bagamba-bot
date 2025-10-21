@@ -31,9 +31,10 @@ class Incident:
         if self.created_at is None:
             self.created_at = datetime.now()
 import os
+from config import Config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_DIR = os.getenv("DB_DIR", "/app/db")  # общий том из docker-compose
+DB_DIR = Config.DB_DIR
 DB_PATH = os.path.join(DB_DIR, "incidents.db")
 
 @dataclass

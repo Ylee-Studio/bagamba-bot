@@ -38,6 +38,7 @@ permission_checker = PermissionsChecker(
 duty_manager = DutyManager(
     google_sheets_url=Config.GOOGLE_SHEET_URL,
     credentials_path=Config.GOOGLE_CREDENTIALS_PATH,
+    sheet_range=Config.GOOGLE_SHEET_RANGE,
 )
 IncidentBot = Bot(
     slack_client=slack_client,
@@ -50,14 +51,9 @@ IncidentBot = Bot(
 
 @app.event("message")
 def handle_message_events(event, say, client):
-    """Обрабатывает сообщения в каналах"""
+    """Обрабатывает сообщения в каналах и личных сообщениях"""
     # Игнорируем сообщения от ботов
     if IncidentBot.is_bot_message(event):
-        return
-
-    # Обрабатываем сообщения в тредах
-    if event.get("thread_ts"):
-        IncidentBot.handle_thread_message(event, say, client)
         return
 
     # Получаем информацию о пользователе
@@ -66,6 +62,17 @@ def handle_message_events(event, say, client):
         return
 
     channel_id = event.get("channel")
+    channel_type = event.get("channel_type")
+
+    # Обрабатываем личные сообщения (команды боту)
+    if channel_type == "im":
+        IncidentBot.handle_dm_command(event, say)
+        return
+
+    # Обрабатываем сообщения в тредах
+    if event.get("thread_ts"):
+        IncidentBot.handle_thread_message(event, say, client)
+        return
 
     # Проверяем, разрешен ли канал
     if not IncidentBot.permissions_checker.is_channel_allowed(channel_id):

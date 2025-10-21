@@ -34,8 +34,14 @@ class Config(BaseSettings):
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_DB: int = 0
+    
+    # Google Sheets Configuration
     GOOGLE_SHEET_URL: str | None = None
     GOOGLE_CREDENTIALS_PATH: str | None = None
+    GOOGLE_SHEET_RANGE: str = "2025 new!A:D"  # Лист "2025 new", колонки A-D
+    
+    # Database Configuration
+    DB_DIR: str = "./"  # Директория для базы данных
 
 
 Config = Config()

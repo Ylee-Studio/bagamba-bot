@@ -13,14 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DutyPerson:
-    """Информация о дежурном"""
+class DutySlot:
+    """Информация о временном слоте дежурства"""
 
-    name: str
-    slack_id: str
-    start_date: datetime
-    end_date: datetime
-    week_number: int
+    start_time: str  # Время начала в формате "07:00"
+    end_time: str    # Время окончания в формате "12:00"
+    name: str        # Имя дежурного
+    slack_id: str    # Slack ID дежурного
 
 
 @dataclass
@@ -29,8 +28,9 @@ class DutyManager:
 
     google_sheets_url: str
     credentials_path: str
+    sheet_range: str = "A:D"  # По умолчанию колонки A-D
     service: Any | None = None
-    duty_schedule: list[DutyPerson] = field(default_factory=list)
+    duty_slots: list[DutySlot] = field(default_factory=list)
     last_update: datetime | None = datetime.now() - timedelta(days=2)
     sheet_id: str | None = None
     update_interval_days: int = 2
@@ -97,7 +97,7 @@ class DutyManager:
             logger.info("✅ Google Sheets API инициализирован, загружаем данные...")
             self.update_duty_schedule()
             logger.info(
-                f"📊 После загрузки: {len(self.duty_schedule)} записей в расписании"
+                f"📊 После загрузки: {len(self.duty_slots)} записей в расписании"
             )
         else:
             logger.warning(
@@ -119,11 +119,11 @@ class DutyManager:
 
         try:
             # Получаем данные из Google Sheets
-            range_name = "A:F"  # Колонки A-F (номер недели, дата начала, дата окончания, дежурный, slackId, капасити дней)
+            logger.info(f"📊 Загружаем данные из листа: {self.sheet_range}")
             result = (
                 self.service.spreadsheets()
                 .values()
-                .get(spreadsheetId=self.sheet_id, range=range_name)
+                .get(spreadsheetId=self.sheet_id, range=self.sheet_range)
                 .execute()
             )
 
@@ -137,7 +137,7 @@ class DutyManager:
             self._parse_sheet_data(values)
             self.last_update = datetime.now()
             logger.info(
-                f"✅ Расписание дежурных обновлено. Загружено {len(self.duty_schedule)} записей"
+                f"✅ Расписание дежурных обновлено. Загружено {len(self.duty_slots)} записей"
             )
 
         except HttpError as e:
@@ -147,24 +147,23 @@ class DutyManager:
 
     def _parse_sheet_data(self, values: List[List[str]]):
         """Парсит данные из Google Sheets"""
-        self.duty_schedule = []
+        self.duty_slots = []
 
         # Пропускаем заголовки (первая строка)
         for row in values[1:]:
-            if len(row) < 6:
+            if len(row) < 4:
                 continue
 
             try:
-                week_number = int(row[0].strip()) if row[0].strip() else 0
-                start_date_str = row[1].strip()
-                end_date_str = row[2].strip()
-                name = row[3].strip()
-                slack_id = row[4].strip()
+                start_time = row[0].strip()
+                end_time = row[1].strip()
+                name = row[2].strip()
+                slack_id = row[3].strip()
 
                 # Пропускаем записи с #N/A в slack_id
                 if slack_id == "#N/A" or not slack_id or slack_id.lower() == "n/a":
                     logger.debug(
-                        f"Пропускаем запись для {name} (неделя {week_number}) из-за отсутствующего Slack ID."
+                        f"Пропускаем запись для {name} ({start_time}-{end_time}) из-за отсутствующего Slack ID."
                     )
                     continue
 
@@ -172,39 +171,40 @@ class DutyManager:
                 if slack_id.startswith("@"):
                     slack_id = slack_id[1:]
 
-                # Парсим даты в разных форматах
-                start_date = self._parse_date(start_date_str)
-                end_date = self._parse_date(end_date_str)
-
-                if not start_date or not end_date:
+                # Проверяем, что время в правильном формате
+                if not self._validate_time_format(start_time) or not self._validate_time_format(end_time):
                     logger.warning(
-                        f"⚠️ Не удалось распарсить даты для {name} (неделя {week_number}): {start_date_str} - {end_date_str}"
+                        f"⚠️ Неверный формат времени для {name}: {start_time} - {end_time}"
                     )
                     continue
 
-                # Добавляем время к дате окончания, чтобы включить весь день
-                end_date = end_date + timedelta(days=1, microseconds=-1)
-
-                duty_person = DutyPerson(
+                duty_slot = DutySlot(
+                    start_time=start_time,
+                    end_time=end_time,
                     name=name,
                     slack_id=slack_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    week_number=week_number,
                 )
 
-                self.duty_schedule.append(duty_person)
+                self.duty_slots.append(duty_slot)
                 logger.debug(
-                    f"✅ Добавлен дежурный: {name} ({slack_id}) с {start_date.date()} по {end_date.date()}"
+                    f"✅ Добавлен слот: {name} ({slack_id}) с {start_time} по {end_time}"
                 )
 
             except (ValueError, IndexError) as e:
                 logger.warning(f"⚠️ Ошибка парсинга строки: {row} - {e}")
                 continue
 
-        # Сортируем расписание по дате начала
-        self.duty_schedule.sort(key=lambda x: x.start_date)
-        logger.info(f"📅 Загружено {len(self.duty_schedule)} записей дежурных")
+        # Сортируем слоты по времени начала
+        self.duty_slots.sort(key=lambda x: x.start_time)
+        logger.info(f"📅 Загружено {len(self.duty_slots)} временных слотов")
+
+    def _validate_time_format(self, time_str: str) -> bool:
+        """Проверяет формат времени HH:MM"""
+        try:
+            datetime.strptime(time_str, "%H:%M")
+            return True
+        except ValueError:
+            return False
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """Парсит дату в различных форматах"""
@@ -233,8 +233,8 @@ class DutyManager:
         logger.warning(f"⚠️ Не удалось распарсить дату: {date_str}")
         return None
 
-    def get_current_duty_person(self) -> Optional[DutyPerson]:
-        """Возвращает текущего дежурного"""
+    def get_current_duty_person(self) -> Optional[DutySlot]:
+        """Возвращает текущего дежурного по времени"""
         logger.info(
             f"🔍 get_current_duty_person вызван. last_update: {self.last_update}, update_interval: {self.update_interval_days}"
         )
@@ -248,41 +248,31 @@ class DutyManager:
         else:
             logger.info("📋 Используем кэшированное расписание дежурных")
 
-        current_date = datetime.now()
-        logger.info(f"📅 Текущая дата: {current_date.strftime('%d.%m.%Y %H:%M:%S')}")
-        logger.info(f"📋 Количество записей в расписании: {len(self.duty_schedule)}")
+        current_time = datetime.now().strftime("%H:%M")
+        logger.info(f"📅 Текущее время: {current_time}")
+        logger.info(f"📋 Количество слотов в расписании: {len(self.duty_slots)}")
 
-        for duty_person in self.duty_schedule:
+        for duty_slot in self.duty_slots:
             logger.info(
-                f"🔍 Проверяем дежурного: {duty_person.name} ({duty_person.start_date.strftime('%d.%m.%Y')} - {duty_person.end_date.strftime('%d.%m.%Y')})"
+                f"🔍 Проверяем слот: {duty_slot.name} ({duty_slot.start_time} - {duty_slot.end_time})"
             )
-            if duty_person.start_date <= current_date <= duty_person.end_date:
+            if duty_slot.start_time <= current_time <= duty_slot.end_time:
                 logger.info(
-                    f"✅ Текущий дежурный найден: {duty_person.name} ({duty_person.slack_id})"
+                    f"✅ Текущий дежурный найден: {duty_slot.name} ({duty_slot.slack_id})"
                 )
-                return duty_person
+                return duty_slot
 
-        logger.warning("⚠️ Не найден дежурный на текущую дату")
-        return None
-
-    async def get_duty_person_by_week(self, week_number: int) -> Optional[DutyPerson]:
-        """Возвращает дежурного по номеру недели"""
-        for duty_person in self.duty_schedule:
-            if duty_person.week_number == week_number:
-                return duty_person
+        logger.warning("⚠️ Не найден дежурный на текущее время")
         return None
 
     def get_duty_schedule_info(self) -> str:
         """Возвращает информацию о расписании дежурных"""
-        if not self.duty_schedule:
+        if not self.duty_slots:
             return "Расписание дежурных не загружено"
 
         info = f"Расписание дежурных (обновлено: {self.last_update.strftime('%d.%m.%Y %H:%M') if self.last_update else 'никогда'}):\n"
 
-        for duty_person in self.duty_schedule[:5]:  # Показываем только первые 5 записей
-            info += f"• Неделя {duty_person.week_number}: {duty_person.name} ({duty_person.start_date.strftime('%d.%m.%y')} - {duty_person.end_date.strftime('%d.%m.%y')})\n"
-
-        if len(self.duty_schedule) > 5:
-            info += f"... и еще {len(self.duty_schedule) - 5} записей"
+        for duty_slot in self.duty_slots:
+            info += f"• {duty_slot.start_time}-{duty_slot.end_time}: {duty_slot.name} ({duty_slot.slack_id})\n"
 
         return info

@@ -51,15 +51,15 @@ class Bot:
     def get_duty_manager(
         self,
     ) -> str:
-        duty_person = self.duty_manager.get_current_duty_person()
+        duty_slot = self.duty_manager.get_current_duty_person()
         logger.info(
-            f"🔍 В create_incident_buttons получен дежурный: {duty_person.name if duty_person else 'None'} ({duty_person.slack_id if duty_person else 'None'})"
+            f"🔍 В create_incident_buttons получен дежурный: {duty_slot.name if duty_slot else 'None'} ({duty_slot.slack_id if duty_slot else 'None'})"
         )
         # Используем дежурного, если он найден, иначе используем ответственного из конфига
         duty_user_id = (
-            duty_person.slack_id if duty_person else self.default_responsible_user_id
+            duty_slot.slack_id if duty_slot else self.default_responsible_user_id
         )
-        duty_name = duty_person.name if duty_person else "ответственный"
+        duty_name = duty_slot.name if duty_slot else "ответственный"
         logger.info(
             f"🔍 В create_incident_buttons будет использован: {duty_name} ({duty_user_id})"
         )
@@ -255,6 +255,87 @@ class Bot:
                 }
             ]
         return []
+
+    def handle_dm_command(self, event, say):
+        """Обрабатывает команды в личных сообщениях"""
+        user_id = event.get("user")
+        text = event.get("text", "").strip().lower()
+        channel_id = event.get("channel")
+
+        if not user_id or not text:
+            return
+
+        logger.info(f"📩 Получена команда в личку от {user_id}: {text}")
+
+        # Команда обновления расписания дежурных
+        if text in ["обновить расписание", "update schedule", "refresh"]:
+            self._handle_update_schedule_command(channel_id, say)
+        elif text in ["расписание", "schedule", "дежурные"]:
+            self._handle_show_schedule_command(channel_id, say)
+        else:
+            # Показываем доступные команды
+            self._show_available_commands(channel_id, say)
+
+    def _handle_update_schedule_command(self, channel_id: str, say):
+        """Обрабатывает команду обновления расписания"""
+        try:
+            logger.info("🔄 Принудительное обновление расписания дежурных")
+            
+            # Принудительно обновляем расписание
+            self.duty_manager.update_duty_schedule()
+            
+            # Получаем информацию о текущем расписании
+            schedule_info = self.duty_manager.get_duty_schedule_info()
+            
+            say(
+                channel=channel_id,
+                text=f"✅ Расписание дежурных обновлено!\n\n{schedule_info}"
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка при обновлении расписания: {e}")
+            say(
+                channel=channel_id,
+                text=f"❌ Ошибка при обновлении расписания: {str(e)}"
+            )
+
+    def _handle_show_schedule_command(self, channel_id: str, say):
+        """Обрабатывает команду показа расписания"""
+        try:
+            schedule_info = self.duty_manager.get_duty_schedule_info()
+            
+            # Получаем текущего дежурного
+            current_duty = self.duty_manager.get_current_duty_person()
+            if current_duty:
+                current_info = f"\n🕐 Сейчас дежурный: {current_duty.name} ({current_duty.start_time}-{current_duty.end_time})"
+            else:
+                current_info = "\n🕐 Сейчас нет активного дежурного"
+            
+            say(
+                channel=channel_id,
+                text=f"{schedule_info}{current_info}"
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка при получении расписания: {e}")
+            say(
+                channel=channel_id,
+                text=f"❌ Ошибка при получении расписания: {str(e)}"
+            )
+
+    def _show_available_commands(self, channel_id: str, say):
+        """Показывает доступные команды"""
+        commands_text = """
+🤖 Доступные команды:
+
+• `обновить расписание` - принудительно обновить расписание дежурных
+• `расписание` - показать текущее расписание дежурных
+• `help` - показать эту справку
+
+Просто напишите команду в этом чате.
+        """
+        
+        say(channel=channel_id, text=commands_text)
 
     def handle_thread_message(self, event, say, client):
         """Обрабатывает сообщения в тредах инцидентов"""
