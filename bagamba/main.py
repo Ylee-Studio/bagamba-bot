@@ -52,37 +52,44 @@ IncidentBot = Bot(
 @app.event("message")
 def handle_message_events(event, say, client):
     """Обрабатывает сообщения в каналах и личных сообщениях"""
+    logger.info(f"🔔 Получено событие message: {event}")
+    
     # Игнорируем сообщения от ботов
     if IncidentBot.is_bot_message(event):
+        logger.info(f"🤖 Игнорируем сообщение от бота: {event.get('bot_id', 'unknown')}")
         return
 
     # Получаем информацию о пользователе
     user_id = event.get("user")
     if not user_id:
+        logger.warning("⚠️ Сообщение без user_id, игнорируем")
         return
 
     channel_id = event.get("channel")
     channel_type = event.get("channel_type")
+    message_text = event.get("text", "")
+
+    logger.info(f"📝 Обрабатываем сообщение: user={user_id}, channel={channel_id}, type={channel_type}, text='{message_text}'")
 
     # Обрабатываем личные сообщения (команды боту)
     if channel_type == "im":
+        logger.info(f"💬 Личное сообщение от {user_id}: {message_text}")
         IncidentBot.handle_dm_command(event, say)
         return
 
     # Обрабатываем сообщения в тредах
     if event.get("thread_ts"):
+        logger.info(f"🧵 Сообщение в треде: {event.get('thread_ts')}")
         IncidentBot.handle_thread_message(event, say, client)
         return
 
     # Проверяем, разрешен ли канал
     if not IncidentBot.permissions_checker.is_channel_allowed(channel_id):
-        logger.info(f"Игнорируем сообщение из неразрешенного канала: {channel_id}")
+        logger.info(f"🚫 Игнорируем сообщение из неразрешенного канала: {channel_id}")
         return
 
     user_name = IncidentBot.get_user_name(user_id)
-    message_text = event.get("text", "")
-
-    logger.info(f"Новое сообщение от {user_name} в канале {channel_id}: {message_text}")
+    logger.info(f"✅ Обрабатываем сообщение от {user_name} в канале {channel_id}: {message_text}")
 
     # Создаем тикет в Jira
     try:
@@ -173,6 +180,7 @@ def handle_message_events(event, say, client):
 @app.action("take_incident")
 def handle_take_incident(ack, body, say):
     """Обрабатывает нажатие кнопки 'Взять в работу'"""
+    logger.info(f"🔘 Получено действие take_incident: {body}")
     ack()
 
     user_id = body["user"]["id"]
@@ -182,6 +190,8 @@ def handle_take_incident(ack, body, say):
     thread_ts = body["message"].get(
         "thread_ts", message_ts
     )  # thread_ts для добавления реакций к исходному сообщению
+    
+    logger.info(f"🔘 Обрабатываем take_incident: user={user_id}, ticket={ticket_key}, channel={channel_id}")
 
     # Сразу отключаем кнопки для предотвращения двойного клика
     try:
@@ -665,16 +675,29 @@ def handle_freeze_incident(ack, body, say):
 
 def main():
     """Основная функция запуска бота"""
-    logger.info("Запуск Slack бота для работы с инцидентами...")
+    logger.info("🚀 Запуск Slack бота для работы с инцидентами...")
+    
+    # Логируем конфигурацию
+    logger.info(f"📊 Конфигурация:")
+    logger.info(f"  - RESPONSIBLE_USER_ID: {Config.RESPONSIBLE_USER_ID}")
+    logger.info(f"  - ALLOWED_CHANNELS: {Config.ALLOWED_CHANNELS}")
+    logger.info(f"  - ALLOWED_BUTTON_USERS: {Config.ALLOWED_BUTTON_USERS}")
+    logger.info(f"  - REDIS_URL: {Config.REDIS_URL}")
+    logger.info(f"  - GOOGLE_SHEET_URL: {Config.GOOGLE_SHEET_URL}")
+    logger.info(f"  - GOOGLE_SHEET_RANGE: {Config.GOOGLE_SHEET_RANGE}")
 
     # Инициализируем базу данных
+    logger.info("🗄️ Инициализация базы данных...")
     incident_manager.init()
 
     # Инициализируем менеджер дежурных
+    logger.info("👥 Инициализация менеджера дежурных...")
     duty_manager.init()
 
     # Запускаем бота
+    logger.info("🤖 Запуск Slack бота...")
     handler = SocketModeHandler(app, Config.SLACK_APP_TOKEN)
+    logger.info("✅ Slack бот запущен и готов к работе!")
     handler.start()
 
 

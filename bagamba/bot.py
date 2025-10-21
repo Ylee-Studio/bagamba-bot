@@ -16,6 +16,7 @@ class PermissionsChecker:
     def is_user_allowed_for_buttons(self, user_id: str) -> bool:
         logger.info(f"🔐 Проверка прав доступа для пользователя {user_id}")
         logger.info(f"🔐 ALLOWED_BUTTON_USERS: {self.allowed_button_users}")
+        logger.info(f"🔐 Количество разрешенных пользователей: {len(self.allowed_button_users)}")
 
         if not len(self.allowed_button_users):
             logger.info(
@@ -31,6 +32,10 @@ class PermissionsChecker:
 
     def is_channel_allowed(self, channel_id: str) -> bool:
         """Проверяет, разрешен ли канал для работы бота"""
+        logger.info(f"🔐 Проверка канала {channel_id}")
+        logger.info(f"🔐 ALLOWED_CHANNELS: {self.allowed_channels}")
+        logger.info(f"🔐 Количество разрешенных каналов: {len(self.allowed_channels)}")
+        
         if not len(self.allowed_channels):
             logger.info("🔐 Список разрешенных каналов пустой, разрешаем доступ")
             return True
@@ -262,7 +267,10 @@ class Bot:
         text = event.get("text", "").strip().lower()
         channel_id = event.get("channel")
 
+        logger.info(f"💬 Обрабатываем DM команду: user={user_id}, text='{text}', channel={channel_id}")
+
         if not user_id or not text:
+            logger.warning("⚠️ Пустая команда или отсутствует user_id")
             return
 
         logger.info(f"📩 Получена команда в личку от {user_id}: {text}")
