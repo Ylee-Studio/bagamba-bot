@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from typing import Any, Optional, List
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -304,15 +304,18 @@ class DutyManager:
         # Получаем московское время
         
         moscow_tz = pytz.timezone('Europe/Moscow')
-        current_time = datetime.now(moscow_tz).strftime("%H:%M")
+        current_datetime = datetime.now(moscow_tz)
+        current_time = current_datetime.time() 
         logger.info(f"📅 Текущее время (Москва): {current_time}")
         logger.info(f"📋 Количество слотов в расписании: {len(self.duty_slots)}")
 
         for duty_slot in self.duty_slots:
+            start_time = datetime.strptime(duty_slot.start_time, "%H:%M").time()
+            end_time = datetime.strptime(duty_slot.end_time, "%H:%M").time()
             logger.info(
                 f"🔍 Проверяем слот: {duty_slot.name} ({duty_slot.start_time} - {duty_slot.end_time})"
             )
-            if duty_slot.start_time <= current_time <= duty_slot.end_time:
+            if start_time <= current_time < end_time:
                 logger.info(
                     f"✅ Текущий дежурный найден: {duty_slot.name} ({duty_slot.slack_id})"
                 )
